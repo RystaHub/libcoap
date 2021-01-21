@@ -763,6 +763,7 @@ usage( const char *program, const char *version) {
      "\t       \t\tNote: -k and -u still need to be defined for the default\n"
      "\t       \t\tcase\n"
      "\t-k key \t\tPre-shared key for the specified user\n"
+     "\t-x key \t\tPre-shared key for the specified user in HEX format\n"
      "\t-u user\t\tUser identity for pre-shared key mode\n"
      "PKI Options (if supported by underlying (D)TLS library)\n"
      "\tNote: If any one of '-c certfile', '-j keyfile' or '-C cafile' is in\n"
@@ -1324,6 +1325,20 @@ cmdline_read_key(char *arg, unsigned char **buf, size_t maxlen) {
   return -1;
 }
 
+static ssize_t
+cmdline_read_hex_key(char *arg, unsigned char **buf, size_t maxlen) {
+  //size_t len = strnlen(arg, maxlen);
+  size_t len = convert_hex_string(arg, (uint8_t *)arg);
+  //size_t len = strnlen(arg, maxlen);
+  if (len) {
+    *buf = (unsigned char *)arg;
+    return (len > maxlen) ? maxlen : len;
+  }
+  /* Need at least one byte for the pre-shared key */
+  coap_log( LOG_CRIT, "Invalid Pre-Shared Key specified\n" );
+  return -1;
+}
+
 static int cmdline_read_hint_check(const char *arg) {
   FILE *fp = fopen(arg, "r");
   static char tmpbuf[256];
@@ -1680,7 +1695,7 @@ main(int argc, char **argv) {
   struct sigaction sa;
 #endif
 
-  while ((opt = getopt(argc, argv, "a:b:c:e:f:h:j:k:l:m:o:p:rs:t:u:v:wA:B:C:H:J:K:M:NO:P:R:T:U")) != -1) {
+  while ((opt = getopt(argc, argv, "a:b:c:e:f:h:j:k:l:m:o:p:rs:t:u:v:x:wA:B:C:H:J:K:M:NO:P:R:T:U")) != -1) {
     switch (opt) {
     case 'a':
       strncpy(node_str, optarg, NI_MAXHOST - 1);
@@ -1785,6 +1800,9 @@ main(int argc, char **argv) {
       break;
     case 'r':
       reliable = coap_tcp_is_supported();
+      break;
+    case 'x':
+      key_length = cmdline_read_hex_key(optarg, &key, MAX_KEY);
       break;
     case 'K':
       ping_seconds = atoi(optarg);
